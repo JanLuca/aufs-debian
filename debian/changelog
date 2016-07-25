@@ -1,0 +1,5 @@
+aufs4 (4.6+20160523-1) unstable; urgency=medium
+
+  * Initial release (Closes: #832451)
+
+ -- Jan Luca Naumann <j.naumann@fu-berlin.de>  Sun, 24 Jul 2016 18:01:00 +0200

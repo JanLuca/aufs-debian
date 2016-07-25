@@ -1,0 +1,37 @@
+Source: aufs4
+Section: kernel
+Priority: optional
+Maintainer: Filesystems Group <filesystems-devel@lists.alioth.debian.org>
+Uploaders: Jan Luca Naumann <j.naumann@fu-berlin.de>
+Build-Depends: debhelper (>=9), dkms
+Standards-Version: 3.9.8
+Homepage: http://aufs.sourceforge.net/
+Vcs-Browser: https://github.com/JanLuca/aufs4-debian
+Vcs-Git: https://github.com/JanLuca/aufs4-debian.git
+
+Package: aufs4-dkms
+Architecture: linux-any
+Multi-Arch: foreign
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Suggests: aufs4-headers
+Description: DKMS files to build and install the aufs4 module
+ The aufs driver provides a unification file system for the Linux kernel. It
+ allows one to virtually merge the contents of several directories and/or stack
+ them, so that apparent file changes in the aufs end in file changes in only one
+ of the source directories.
+ .
+ This package contains the DKMS files to build and install the aufs4 module.
+
+Package: aufs4-headers
+Architecture: linux-any
+Multi-Arch: foreign
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Recommends: aufs4-dkms
+Description: Public header files of the aufs4 module
+ The aufs driver provides a unification file system for the Linux kernel. It
+ allows one to virtually merge the contents of several directories and/or stack
+ them, so that apparent file changes in the aufs end in file changes in only one
+ of the source directories.
+ .
+ This package contains the public header files of the aufs4 module.
+

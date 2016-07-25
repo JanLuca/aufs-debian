@@ -1,0 +1,8 @@
+PACKAGE_NAME="aufs4"
+PACKAGE_VERSION=#MODULE_VERSION#
+CLEAN="make -C ${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build clean"
+MAKE[0]="make -C ${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build aufs.ko"
+BUILT_MODULE_NAME[0]="aufs"
+DEST_MODULE_NAME[0]="aufs"
+DEST_MODULE_LOCATION[0]="/kernel/fs/aufs"
+AUTOINSTALL="yes"

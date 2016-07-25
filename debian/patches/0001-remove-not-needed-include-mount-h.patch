@@ -1,0 +1,18 @@
+Description: Remove error-causing include "../fs/mount.h"
+ Remove the include "../fs/mount.h" which causes errors
+ when compiling out-of-kernel-tree.
+Author: Jan Luca Naumann
+Forwarded: https://github.com/sfjro/aufs4-standalone/pull/1
+Last-Update: 2016-07-25
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/fs/aufs/vfsub.c
++++ b/fs/aufs/vfsub.c
+@@ -23,7 +23,6 @@
+ #include <linux/nsproxy.h>
+ #include <linux/security.h>
+ #include <linux/splice.h>
+-#include "../fs/mount.h"
+ #include "aufs.h"
+ 
+ #ifdef CONFIG_AUFS_BR_FUSE
