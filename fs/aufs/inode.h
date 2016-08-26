@@ -35,7 +35,10 @@ struct au_hnotify {
 	/* never use fsnotify_add_vfsmount_mark() */
 	struct fsnotify_mark		hn_mark;
 #endif
-	struct inode			*hn_aufs_inode;	/* no get/put */
+	union {
+		struct inode		*hn_aufs_inode;	/* no get/put */
+		struct llist_node	hn_lnode;	/* delayed free */
+	};
 #endif
 } ____cacheline_aligned_in_smp;
 
@@ -78,7 +81,10 @@ struct au_iinfo {
 struct au_icntnr {
 	struct au_iinfo iinfo;
 	struct inode vfs_inode;
-	struct hlist_node plink;
+	union {
+		struct hlist_node	plink;
+		struct llist_node	lnode;	/* delayed free */
+	};
 } ____cacheline_aligned_in_smp;
 
 /* au_pin flags */
@@ -111,7 +117,6 @@ struct au_pin {
 void au_pin_hdir_unlock(struct au_pin *p);
 int au_pin_hdir_lock(struct au_pin *p);
 int au_pin_hdir_relock(struct au_pin *p);
-void au_pin_hdir_set_owner(struct au_pin *p, struct task_struct *task);
 void au_pin_hdir_acquire_nest(struct au_pin *p);
 void au_pin_hdir_release(struct au_pin *p);
 
@@ -306,10 +311,10 @@ AuStubVoid(au_plink_half_refresh, struct super_block *sb, aufs_bindex_t br_id);
 int au_cpup_xattr(struct dentry *h_dst, struct dentry *h_src, int ignore_flags,
 		  unsigned int verbose);
 ssize_t aufs_listxattr(struct dentry *dentry, char *list, size_t size);
-ssize_t aufs_getxattr(struct dentry *dentry, const char *name, void *value,
-		      size_t size);
-int aufs_setxattr(struct dentry *dentry, const char *name, const void *value,
-		  size_t size, int flags);
+ssize_t aufs_getxattr(struct dentry *dentry, struct inode *inode,
+		      const char *name, void *value, size_t size);
+int aufs_setxattr(struct dentry *dentry, struct inode *inode, const char *name,
+		  const void *value, size_t size, int flags);
 int aufs_removexattr(struct dentry *dentry, const char *name);
 
 /* void au_xattr_init(struct super_block *sb); */
@@ -349,7 +354,8 @@ struct au_srxattr {
 		} acl_set;
 	} u;
 };
-ssize_t au_srxattr(struct dentry *dentry, struct au_srxattr *arg);
+ssize_t au_srxattr(struct dentry *dentry, struct inode *inode,
+		   struct au_srxattr *arg);
 #endif
 
 /* ---------------------------------------------------------------------- */
@@ -478,6 +484,11 @@ static inline struct au_hinode *au_hinode(struct au_iinfo *iinfo,
 					  aufs_bindex_t bindex)
 {
 	return iinfo->ii_hinode + bindex;
+}
+
+static inline int au_is_bad_inode(struct inode *inode)
+{
+	return !!(is_bad_inode(inode) || !au_hinode(au_ii(inode), 0));
 }
 
 static inline aufs_bindex_t au_ii_br_id(struct inode *inode,
@@ -666,20 +677,20 @@ static inline void au_hn_resume(struct au_hinode *hdir)
 	au_hn_ctl(hdir, /*do_set*/1);
 }
 
-static inline void au_hn_imtx_lock(struct au_hinode *hdir)
+static inline void au_hn_inode_lock(struct au_hinode *hdir)
 {
 	inode_lock(hdir->hi_inode);
 	au_hn_suspend(hdir);
 }
 
-static inline void au_hn_imtx_lock_nested(struct au_hinode *hdir,
+static inline void au_hn_inode_lock_nested(struct au_hinode *hdir,
 					  unsigned int sc __maybe_unused)
 {
 	inode_lock_nested(hdir->hi_inode, sc);
 	au_hn_suspend(hdir);
 }
 
-static inline void au_hn_imtx_unlock(struct au_hinode *hdir)
+static inline void au_hn_inode_unlock(struct au_hinode *hdir)
 {
 	au_hn_resume(hdir);
 	inode_unlock(hdir->hi_inode);

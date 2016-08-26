@@ -36,6 +36,7 @@ static struct inode *aufs_alloc_inode(struct super_block *sb __maybe_unused)
 	if (c) {
 		au_icntnr_init(c);
 		c->vfs_inode.i_version = 1; /* sigen(sb); */
+		c->iinfo.ii_hinode = NULL;
 		return &c->vfs_inode;
 	}
 	return NULL;
@@ -45,13 +46,12 @@ static void aufs_destroy_inode_cb(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
 
-	INIT_HLIST_HEAD(&inode->i_dentry);
-	au_cache_free_icntnr(container_of(inode, struct au_icntnr, vfs_inode));
+	au_cache_dfree_icntnr(container_of(inode, struct au_icntnr, vfs_inode));
 }
 
 static void aufs_destroy_inode(struct inode *inode)
 {
-	if (!is_bad_inode(inode))
+	if (!au_is_bad_inode(inode))
 		au_iinfo_fin(inode);
 	call_rcu(&inode->i_rcu, aufs_destroy_inode_cb);
 }
@@ -98,11 +98,12 @@ static int au_show_brs(struct seq_file *seq, struct super_block *sb)
 
 	err = 0;
 	bbot = au_sbbot(sb);
-	hdp = au_di(sb->s_root)->di_hdentry;
-	for (bindex = 0; !err && bindex <= bbot; bindex++) {
+	bindex = 0;
+	hdp = au_hdentry(au_di(sb->s_root), bindex);
+	for (; !err && bindex <= bbot; bindex++, hdp++) {
 		br = au_sbr(sb, bindex);
 		path.mnt = au_br_mnt(br);
-		path.dentry = hdp[bindex].hd_dentry;
+		path.dentry = hdp->hd_dentry;
 		err = au_seq_path(seq, &path);
 		if (!err) {
 			au_optstr_br_perm(&perm, br->br_perm);
@@ -177,7 +178,6 @@ static int au_show_xino(struct seq_file *seq, struct super_block *sb)
 	struct qstr *name;
 	struct file *f;
 	struct dentry *d, *h_root;
-	struct au_hdentry *hdp;
 
 	AuRwMustAnyLock(&sbinfo->si_rwsem);
 
@@ -191,8 +191,7 @@ static int au_show_xino(struct seq_file *seq, struct super_block *sb)
 	brid = au_xino_brid(sb);
 	if (brid >= 0) {
 		bindex = au_br_index(sb, brid);
-		hdp = au_di(sb->s_root)->di_hdentry;
-		h_root = hdp[0 + bindex].hd_dentry;
+		h_root = au_hdentry(au_di(sb->s_root), bindex)->hd_dentry;
 	}
 	d = f->f_path.dentry;
 	name = &d->d_name;
@@ -516,7 +515,7 @@ static unsigned long long au_iarray_cb(struct super_block *sb, void *a,
 	head = arg;
 	spin_lock(&sb->s_inode_list_lock);
 	list_for_each_entry(inode, head, i_sb_list) {
-		if (!is_bad_inode(inode)
+		if (!au_is_bad_inode(inode)
 		    && au_ii(inode)->ii_btop >= 0) {
 			spin_lock(&inode->i_lock);
 			if (atomic_read(&inode->i_count)) {
@@ -535,7 +534,7 @@ static unsigned long long au_iarray_cb(struct super_block *sb, void *a,
 
 struct inode **au_iarray_alloc(struct super_block *sb, unsigned long long *max)
 {
-	*max = atomic_long_read(&au_sbi(sb)->si_ninodes);
+	*max = au_ninodes(sb);
 	return au_array_alloc(max, au_iarray_cb, sb, &sb->s_inodes);
 }
 
@@ -829,7 +828,7 @@ static int aufs_remount_fs(struct super_block *sb, int *flags, char *data)
 out_mtx:
 	inode_unlock(inode);
 out_opts:
-	free_page((unsigned long)opts.opt);
+	au_delayed_free_page((unsigned long)opts.opt);
 out:
 	err = cvt_err(err);
 	AuTraceErr(err);
@@ -970,7 +969,7 @@ out_info:
 	kobject_put(&sbinfo->si_kobj);
 	sb->s_fs_info = NULL;
 out_opts:
-	free_page((unsigned long)opts.opt);
+	au_delayed_free_page((unsigned long)opts.opt);
 out:
 	AuTraceErr(err);
 	err = cvt_err(err);

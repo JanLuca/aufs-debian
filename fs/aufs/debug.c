@@ -146,7 +146,7 @@ void au_dpri_inode(struct inode *inode)
 	int err, hn;
 
 	err = do_pri_inode(-1, inode, -1, NULL);
-	if (err || !au_test_aufs(inode->i_sb) || is_bad_inode(inode))
+	if (err || !au_test_aufs(inode->i_sb) || au_is_bad_inode(inode))
 		return;
 
 	iinfo = au_ii(inode);
@@ -176,9 +176,9 @@ static int do_pri_dentry(aufs_bindex_t bindex, struct dentry *dentry)
 {
 	struct dentry *wh = NULL;
 	int hn;
+	struct inode *inode;
 	struct au_iinfo *iinfo;
 	struct au_hinode *hi;
-	struct inode *inode;
 
 	if (!dentry || IS_ERR(dentry)) {
 		dpri("d%d: err %ld\n", bindex, PTR_ERR(dentry));
@@ -193,11 +193,12 @@ static int do_pri_dentry(aufs_bindex_t bindex, struct dentry *dentry)
 	     d_unhashed(dentry) ? "un" : "");
 	hn = -1;
 	inode = NULL;
-	if (bindex >= 0
-	    && d_is_positive(dentry)
-	    && au_test_aufs(dentry->d_sb))
+	if (d_is_positive(dentry))
 		inode = d_inode(dentry);
-	if (inode && !is_bad_inode(inode)) {
+	if (inode
+	    && au_test_aufs(dentry->d_sb)
+	    && bindex >= 0
+	    && !au_is_bad_inode(inode)) {
 		iinfo = au_ii(inode);
 		hi = au_hinode(iinfo, bindex);
 		hn = !!au_hn(hi);
@@ -212,7 +213,6 @@ void au_dpri_dentry(struct dentry *dentry)
 	struct au_dinfo *dinfo;
 	aufs_bindex_t bindex;
 	int err;
-	struct au_hdentry *hdp;
 
 	err = do_pri_dentry(-1, dentry);
 	if (err || !au_test_aufs(dentry->d_sb))
@@ -227,9 +227,8 @@ void au_dpri_dentry(struct dentry *dentry)
 	     dinfo->di_tmpfile);
 	if (dinfo->di_btop < 0)
 		return;
-	hdp = dinfo->di_hdentry;
 	for (bindex = dinfo->di_btop; bindex <= dinfo->di_bbot; bindex++)
-		do_pri_dentry(bindex, hdp[0 + bindex].hd_dentry);
+		do_pri_dentry(bindex, au_hdentry(dinfo, bindex)->hd_dentry);
 }
 
 static int do_pri_file(aufs_bindex_t bindex, struct file *file)
@@ -337,7 +336,7 @@ void au_dpri_sb(struct super_block *sb)
 	au_br_count_init(&a->fake);
 	err = do_pri_br(-1, &a->fake);
 	au_br_count_fin(&a->fake);
-	kfree(a);
+	au_delayed_kfree(a);
 	dpri("dev 0x%x\n", sb->s_dev);
 	if (err || !au_test_aufs(sb))
 		return;

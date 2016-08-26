@@ -273,7 +273,7 @@ int au_do_open(struct file *file, struct au_do_open_args *args)
 	}
 	if (unlikely(err)) {
 		finfo->fi_hdir = NULL;
-		au_finfo_fin(file);
+		au_finfo_fin(file, /*atonce*/0);
 	}
 
 out:
@@ -352,11 +352,11 @@ static int au_reopen_wh(struct file *file, aufs_bindex_t btgt,
 
 	btop = dinfo->di_btop;
 	dinfo->di_btop = btgt;
-	hdp = dinfo->di_hdentry;
-	h_dentry = hdp[0 + btgt].hd_dentry;
-	hdp[0 + btgt].hd_dentry = hi_wh;
+	hdp = au_hdentry(dinfo, btgt);
+	h_dentry = hdp->hd_dentry;
+	hdp->hd_dentry = hi_wh;
 	err = au_reopen_nondir(file);
-	hdp[0 + btgt].hd_dentry = h_dentry;
+	hdp->hd_dentry = h_dentry;
 	dinfo->di_btop = btop;
 
 	return err;
@@ -593,6 +593,7 @@ out:
 
 static void au_do_refresh_dir(struct file *file)
 {
+	int execed;
 	aufs_bindex_t bindex, bbot, new_bindex, brid;
 	struct au_hfile *p, tmp, *q;
 	struct au_finfo *finfo;
@@ -631,6 +632,7 @@ static void au_do_refresh_dir(struct file *file)
 		}
 	}
 
+	execed = vfsub_file_execed(file);
 	p = fidir->fd_hfile;
 	if (!au_test_mmapped(file) && !d_unlinked(file->f_path.dentry)) {
 		bbot = au_sbbot(sb);
@@ -639,14 +641,14 @@ static void au_do_refresh_dir(struct file *file)
 			if (p->hf_file) {
 				if (file_inode(p->hf_file))
 					break;
-				au_hfput(p, file);
+				au_hfput(p, execed);
 			}
 	} else {
 		bbot = au_br_index(sb, brid);
 		for (finfo->fi_btop = 0; finfo->fi_btop < bbot;
 		     finfo->fi_btop++, p++)
 			if (p->hf_file)
-				au_hfput(p, file);
+				au_hfput(p, execed);
 		bbot = au_sbbot(sb);
 	}
 
@@ -656,7 +658,7 @@ static void au_do_refresh_dir(struct file *file)
 		if (p->hf_file) {
 			if (file_inode(p->hf_file))
 				break;
-			au_hfput(p, file);
+			au_hfput(p, execed);
 		}
 	AuDebugOn(fidir->fd_bbot < finfo->fi_btop);
 }
@@ -771,8 +773,7 @@ static int aufs_readpage(struct file *file __maybe_unused, struct page *page)
 }
 
 /* it will never be called, but necessary to support O_DIRECT */
-static ssize_t aufs_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
-			      loff_t offset)
+static ssize_t aufs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 { BUG(); return 0; }
 
 /* they will never be called. */

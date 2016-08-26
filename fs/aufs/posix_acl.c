@@ -71,7 +71,8 @@ int aufs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		},
 	};
 
-	inode_lock(inode);
+	IMustLock(inode);
+
 	if (inode->i_ino == AUFS_ROOT_INO)
 		dentry = dget(inode->i_sb->s_root);
 	else {
@@ -86,13 +87,12 @@ int aufs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		}
 	}
 
-	ssz = au_srxattr(dentry, &arg);
+	ssz = au_srxattr(dentry, inode, &arg);
 	dput(dentry);
 	err = ssz;
 	if (ssz >= 0)
 		err = 0;
 
 out:
-	inode_unlock(inode);
 	return err;
 }

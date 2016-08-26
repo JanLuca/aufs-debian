@@ -197,8 +197,9 @@ static struct dentry *aufs_lookup(struct inode *dir, struct dentry *dentry,
 	if (!err)
 		err = au_digen_test(parent, au_sigen(sb));
 	if (!err) {
+		/* regardless LOOKUP_CREATE, always ALLOW_NEG */
 		npositive = au_lkup_dentry(dentry, au_dbtop(parent),
-					   /*type*/0);
+					   AuLkup_ALLOW_NEG);
 		err = npositive;
 	}
 	di_read_unlock(parent, AuLock_IR);
@@ -279,8 +280,8 @@ static int aufs_atomic_open(struct inode *dir, struct dentry *dentry,
 			    umode_t create_mode, int *opened)
 {
 	int err, h_opened = *opened;
-	struct dentry *parent;
-	struct dentry *d;
+	unsigned int lkup_flags;
+	struct dentry *parent, *d;
 	struct au_sphlhead *aopen;
 	struct vfsub_aopen_args args = {
 		.open_flag	= open_flag,
@@ -292,14 +293,18 @@ static int aufs_atomic_open(struct inode *dir, struct dentry *dentry,
 	};
 
 	IMustLock(dir);
-	AuDbg("open_flag 0x%x\n", open_flag);
+	AuDbg("open_flag 0%o\n", open_flag);
 	AuDbgDentry(dentry);
 
 	err = 0;
 	if (!au_di(dentry)) {
-		d = aufs_lookup(dir, dentry, /*flags*/0);
+		lkup_flags = LOOKUP_OPEN;
+		if (open_flag & O_CREAT)
+			lkup_flags |= LOOKUP_CREATE;
+		d = aufs_lookup(dir, dentry, lkup_flags);
 		if (IS_ERR(d)) {
 			err = PTR_ERR(d);
+			AuTraceErr(err);
 			goto out;
 		} else if (d) {
 			/*
@@ -307,8 +312,8 @@ static int aufs_atomic_open(struct inode *dir, struct dentry *dentry,
 			 * another error will be returned later.
 			 */
 			d_drop(d);
-			dput(d);
 			AuDbgDentry(d);
+			dput(d);
 		}
 		AuDbgDentry(dentry);
 	}
@@ -325,7 +330,7 @@ static int aufs_atomic_open(struct inode *dir, struct dentry *dentry,
 
 	parent = dentry->d_parent;	/* dir is locked */
 	di_write_lock_parent(parent);
-	err = au_lkup_dentry(dentry, /*btop*/0, /*type*/0);
+	err = au_lkup_dentry(dentry, /*btop*/0, AuLkup_ALLOW_NEG);
 	if (unlikely(err))
 		goto out_unlock;
 
@@ -371,10 +376,10 @@ out_unlock:
 	di_write_unlock(parent);
 	aufs_read_unlock(dentry, AuLock_DW);
 	AuDbgDentry(dentry);
-	if (unlikely(err))
+	if (unlikely(err < 0))
 		goto out;
 out_no_open:
-	if (!err && !(*opened & FILE_CREATED)) {
+	if (err >= 0 && !(*opened & FILE_CREATED)) {
 		AuLabel(out_no_open);
 		dget(dentry);
 		err = finish_no_open(file, dentry);
@@ -521,7 +526,7 @@ out:
 void au_pin_hdir_unlock(struct au_pin *p)
 {
 	if (p->hdir)
-		au_hn_imtx_unlock(p->hdir);
+		au_hn_inode_unlock(p->hdir);
 }
 
 int au_pin_hdir_lock(struct au_pin *p)
@@ -533,7 +538,7 @@ int au_pin_hdir_lock(struct au_pin *p)
 		goto out;
 
 	/* even if an error happens later, keep this lock */
-	au_hn_imtx_lock_nested(p->hdir, p->lsc_hi);
+	au_hn_inode_lock_nested(p->hdir, p->lsc_hi);
 
 	err = -EBUSY;
 	if (unlikely(p->hdir->hi_inode != d_inode(p->h_parent)))
@@ -574,17 +579,17 @@ out:
 	return err;
 }
 
-void au_pin_hdir_set_owner(struct au_pin *p, struct task_struct *task)
+static void au_pin_hdir_set_owner(struct au_pin *p, struct task_struct *task)
 {
-#if defined(CONFIG_DEBUG_MUTEXES) || defined(CONFIG_SMP)
-	p->hdir->hi_inode->i_mutex.owner = task;
+#if !defined(CONFIG_RWSEM_GENERIC_SPINLOCK) && defined(CONFIG_RWSEM_SPIN_ON_OWNER)
+	p->hdir->hi_inode->i_rwsem.owner = task;
 #endif
 }
 
 void au_pin_hdir_acquire_nest(struct au_pin *p)
 {
 	if (p->hdir) {
-		mutex_acquire_nest(&p->hdir->hi_inode->i_mutex.dep_map,
+		rwsem_acquire_nest(&p->hdir->hi_inode->i_rwsem.dep_map,
 				   p->lsc_hi, 0, NULL, _RET_IP_);
 		au_pin_hdir_set_owner(p, current);
 	}
@@ -594,7 +599,7 @@ void au_pin_hdir_release(struct au_pin *p)
 {
 	if (p->hdir) {
 		au_pin_hdir_set_owner(p, p->task);
-		mutex_release(&p->hdir->hi_inode->i_mutex.dep_map, 1, _RET_IP_);
+		rwsem_release(&p->hdir->hi_inode->i_rwsem.dep_map, 1, _RET_IP_);
 	}
 }
 
@@ -988,7 +993,7 @@ out_dentry:
 out_si:
 	si_read_unlock(sb);
 out_kfree:
-	kfree(a);
+	au_delayed_kfree(a);
 out:
 	AuTraceErr(err);
 	return err;
@@ -1023,15 +1028,15 @@ out:
 	return err;
 }
 
-ssize_t au_srxattr(struct dentry *dentry, struct au_srxattr *arg)
+ssize_t au_srxattr(struct dentry *dentry, struct inode *inode,
+		   struct au_srxattr *arg)
 {
 	int err;
 	struct path h_path;
 	struct super_block *sb;
 	struct au_icpup_args *a;
-	struct inode *inode, *h_inode;
+	struct inode *h_inode;
 
-	inode = d_inode(dentry);
 	IMustLock(inode);
 
 	err = -ENOMEM;
@@ -1053,6 +1058,7 @@ ssize_t au_srxattr(struct dentry *dentry, struct au_srxattr *arg)
 	inode_unlock(a->h_inode);
 	switch (arg->type) {
 	case AU_XATTR_SET:
+		AuDebugOn(d_is_negative(h_path.dentry));
 		err = vfsub_setxattr(h_path.dentry,
 				     arg->u.set.name, arg->u.set.value,
 				     arg->u.set.size, arg->u.set.flags);
@@ -1080,7 +1086,7 @@ out_di:
 	di_write_unlock(dentry);
 	si_read_unlock(sb);
 out_kfree:
-	kfree(a);
+	au_delayed_kfree(a);
 out:
 	AuTraceErr(err);
 	return err;

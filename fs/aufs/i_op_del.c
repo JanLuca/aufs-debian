@@ -67,7 +67,8 @@ int au_wr_dir_need_wh(struct dentry *dentry, int isdir, aufs_bindex_t *bcpup)
 			au_di_cp(tmp, dinfo);
 			au_di_swap(tmp, dinfo);
 			/* returns the number of positive dentries */
-			need_wh = au_lkup_dentry(dentry, btop + 1, /*type*/0);
+			need_wh = au_lkup_dentry(dentry, btop + 1,
+						 /* AuLkup_IGNORE_PERM */ 0);
 			au_di_swap(tmp, dinfo);
 			au_rw_write_unlock(&tmp->di_rwsem);
 			au_di_free(tmp);
@@ -393,7 +394,7 @@ out_parent:
 out_unlock:
 	aufs_read_unlock(dentry, AuLock_DW);
 out_free:
-	kfree(a);
+	au_delayed_kfree(a);
 out:
 	return err;
 }
@@ -503,7 +504,7 @@ out_parent:
 out_unlock:
 	aufs_read_unlock(dentry, AuLock_DW);
 out_free:
-	kfree(a);
+	au_delayed_kfree(a);
 out:
 	AuTraceErr(err);
 	return err;
