@@ -357,9 +357,9 @@ int au_copy_file(struct file *dst, struct file *src, loff_t len)
 	dst->f_pos = 0;
 	err = au_do_copy_file(dst, src, len, buf, blksize);
 	if (do_kfree)
-		kfree(buf);
+		au_delayed_kfree(buf);
 	else
-		free_page((unsigned long)buf);
+		au_delayed_free_page((unsigned long)buf);
 
 out:
 	return err;
@@ -519,7 +519,7 @@ static int au_do_cpup_symlink(struct path *h_path, struct dentry *h_src,
 		sym.k[symlen] = 0;
 		err = vfsub_symlink(h_dir, h_path, sym.k);
 	}
-	free_page((unsigned long)sym.k);
+	au_delayed_free_page((unsigned long)sym.k);
 
 out:
 	return err;
@@ -890,7 +890,7 @@ out_rev:
 	}
 out_parent:
 	dput(dst_parent);
-	kfree(a);
+	au_delayed_kfree(a);
 out:
 	return err;
 }
@@ -1100,23 +1100,27 @@ static int au_do_cpup_wh(struct au_cp_generic *cpg, struct dentry *wh_dentry,
 	int err;
 	unsigned int flags_orig;
 	aufs_bindex_t bsrc_orig;
-	struct dentry *h_d_dst, *h_d_start;
 	struct au_dinfo *dinfo;
-	struct au_hdentry *hdp;
+	struct {
+		struct au_hdentry *hd;
+		struct dentry *h_dentry;
+	} hdst, hsrc;
 
 	dinfo = au_di(cpg->dentry);
 	AuRwMustWriteLock(&dinfo->di_rwsem);
 
 	bsrc_orig = cpg->bsrc;
 	cpg->bsrc = dinfo->di_btop;
-	hdp = dinfo->di_hdentry;
-	h_d_dst = hdp[0 + cpg->bdst].hd_dentry;
+	hdst.hd = au_hdentry(dinfo, cpg->bdst);
+	hdst.h_dentry = hdst.hd->hd_dentry;
+	hdst.hd->hd_dentry = wh_dentry;
 	dinfo->di_btop = cpg->bdst;
-	hdp[0 + cpg->bdst].hd_dentry = wh_dentry;
-	h_d_start = NULL;
+
+	hsrc.h_dentry = NULL;
 	if (file) {
-		h_d_start = hdp[0 + cpg->bsrc].hd_dentry;
-		hdp[0 + cpg->bsrc].hd_dentry = au_hf_top(file)->f_path.dentry;
+		hsrc.hd = au_hdentry(dinfo, cpg->bsrc);
+		hsrc.h_dentry = hsrc.hd->hd_dentry;
+		hsrc.hd->hd_dentry = au_hf_top(file)->f_path.dentry;
 	}
 	flags_orig = cpg->flags;
 	cpg->flags = !AuCpup_DTIME;
@@ -1125,9 +1129,9 @@ static int au_do_cpup_wh(struct au_cp_generic *cpg, struct dentry *wh_dentry,
 	if (file) {
 		if (!err)
 			err = au_reopen_nondir(file);
-		hdp[0 + cpg->bsrc].hd_dentry = h_d_start;
+		hsrc.hd->hd_dentry = hsrc.h_dentry;
 	}
-	hdp[0 + cpg->bdst].hd_dentry = h_d_dst;
+	hdst.hd->hd_dentry = hdst.h_dentry;
 	dinfo->di_btop = cpg->bsrc;
 	cpg->bsrc = bsrc_orig;
 

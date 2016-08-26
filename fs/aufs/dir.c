@@ -140,14 +140,14 @@ static void au_do_dir_ts(void *arg)
 	if (err)
 		goto out_unlock;
 	hdir = au_hi(dir, btop);
-	au_hn_imtx_lock_nested(hdir, AuLsc_I_PARENT);
+	au_hn_inode_lock_nested(hdir, AuLsc_I_PARENT);
 	h_dir = au_h_iptr(dir, btop);
 	if (h_dir->i_nlink
 	    && timespec_compare(&h_dir->i_mtime, &dt.dt_mtime) < 0) {
 		dt.dt_h_path = h_path;
 		au_dtime_revert(&dt);
 	}
-	au_hn_imtx_unlock(hdir);
+	au_hn_inode_unlock(hdir);
 	vfsub_mnt_drop_write(h_path.mnt);
 	au_cpup_attr_timesizes(dir);
 
@@ -156,7 +156,7 @@ out_unlock:
 out:
 	dput(a->dentry);
 	au_nwt_done(&au_sbi(sb)->si_nowait);
-	kfree(arg);
+	au_delayed_kfree(arg);
 }
 
 void au_dir_ts(struct inode *dir, aufs_bindex_t bindex)
@@ -192,7 +192,7 @@ void au_dir_ts(struct inode *dir, aufs_bindex_t bindex)
 	if (unlikely(wkq_err)) {
 		pr_err("wkq %d\n", wkq_err);
 		dput(dentry);
-		kfree(arg);
+		au_delayed_kfree(arg);
 	}
 
 out:
@@ -311,7 +311,7 @@ static int aufs_open_dir(struct inode *inode __maybe_unused,
 		};
 		err = au_do_open(file, &args);
 		if (unlikely(err))
-			kfree(fidir);
+			au_delayed_kfree(fidir);
 	}
 	si_read_unlock(sb);
 	return err;
@@ -323,8 +323,11 @@ static int aufs_release_dir(struct inode *inode __maybe_unused,
 	struct au_vdir *vdir_cache;
 	struct au_finfo *finfo;
 	struct au_fidir *fidir;
+	struct au_hfile *hf;
 	aufs_bindex_t bindex, bbot;
+	int execed, delayed;
 
+	delayed = (current->flags & PF_KTHREAD) || in_interrupt();
 	finfo = au_fi(file);
 	fidir = finfo->fi_hdir;
 	if (fidir) {
@@ -332,22 +335,25 @@ static int aufs_release_dir(struct inode *inode __maybe_unused,
 			    &au_sbi(file->f_path.dentry->d_sb)->si_files);
 		vdir_cache = fidir->fd_vdir_cache; /* lock-free */
 		if (vdir_cache)
-			au_vdir_free(vdir_cache);
+			au_vdir_free(vdir_cache, delayed);
 
 		bindex = finfo->fi_btop;
 		if (bindex >= 0) {
+			execed = vfsub_file_execed(file);
+			hf = fidir->fd_hfile + bindex;
 			/*
 			 * calls fput() instead of filp_close(),
 			 * since no dnotify or lock for the lower file.
 			 */
 			bbot = fidir->fd_bbot;
-			for (; bindex <= bbot; bindex++)
-				au_set_h_fptr(file, bindex, NULL);
+			for (; bindex <= bbot; bindex++, hf++)
+				if (hf->hf_file)
+					au_hfput(hf, execed);
 		}
-		kfree(fidir);
+		au_delayed_kfree(fidir);
 		finfo->fi_hdir = NULL;
 	}
-	au_finfo_fin(file);
+	au_finfo_fin(file, delayed);
 	return 0;
 }
 
@@ -466,7 +472,7 @@ static int aufs_fsync_dir(struct file *file, loff_t start, loff_t end,
 
 /* ---------------------------------------------------------------------- */
 
-static int aufs_iterate(struct file *file, struct dir_context *ctx)
+static int aufs_iterate_shared(struct file *file, struct dir_context *ctx)
 {
 	int err;
 	struct dentry *dentry;
@@ -744,7 +750,7 @@ const struct file_operations aufs_dir_fop = {
 	.owner		= THIS_MODULE,
 	.llseek		= default_llseek,
 	.read		= generic_read_dir,
-	.iterate	= aufs_iterate,
+	.iterate_shared	= aufs_iterate_shared,
 	.unlocked_ioctl	= aufs_ioctl_dir,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= aufs_compat_ioctl_dir,

@@ -233,7 +233,7 @@ static struct dentry *decode_by_ino(struct super_block *sb, ino_t ino,
 
 	dentry = ERR_PTR(-ESTALE);
 	sigen = au_sigen(sb);
-	if (unlikely(is_bad_inode(inode)
+	if (unlikely(au_is_bad_inode(inode)
 		     || IS_DEADDIR(inode)
 		     || sigen != au_iigen(inode, NULL)))
 		goto out_iput;
@@ -417,7 +417,7 @@ static struct dentry *au_lkup_by_ino(struct path *path, ino_t ino,
 	}
 
 out_name:
-	free_page((unsigned long)arg.name);
+	au_delayed_free_page((unsigned long)arg.name);
 out_file:
 	fput(file);
 out:
@@ -513,9 +513,11 @@ struct dentry *decode_by_path(struct super_block *sb, ino_t ino, __u32 *fh,
 	h_mnt = au_br_mnt(br);
 	h_sb = h_mnt->mnt_sb;
 	/* todo: call lower fh_to_dentry()? fh_to_parent()? */
+	lockdep_off();
 	h_parent = exportfs_decode_fh(h_mnt, (void *)(fh + Fh_tail),
 				      fh_len - Fh_tail, fh[Fh_h_type],
 				      h_acceptable, /*context*/NULL);
+	lockdep_on();
 	dentry = h_parent;
 	if (unlikely(!h_parent || IS_ERR(h_parent))) {
 		AuWarn1("%s decode_fh failed, %ld\n",
@@ -569,7 +571,7 @@ out_relock:
 			dentry = ERR_PTR(-ESTALE);
 		}
 out_pathname:
-	free_page((unsigned long)pathname);
+	au_delayed_free_page((unsigned long)pathname);
 out_h_parent:
 	dput(h_parent);
 out:

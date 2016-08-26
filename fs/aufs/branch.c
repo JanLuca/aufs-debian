@@ -51,7 +51,7 @@ static void au_br_do_free(struct au_branch *br)
 
 	if (br->br_fhsm) {
 		au_br_fhsm_fin(br->br_fhsm);
-		kfree(br->br_fhsm);
+		au_delayed_kfree(br->br_fhsm);
 	}
 
 	key = br->br_dykey;
@@ -65,8 +65,9 @@ static void au_br_do_free(struct au_branch *br)
 	lockdep_off();
 	path_put(&br->br_path);
 	lockdep_on();
-	kfree(wbr);
-	kfree(br);
+	if (wbr)
+		au_delayed_kfree(wbr);
+	au_delayed_kfree(br);
 }
 
 /*
@@ -164,11 +165,12 @@ static struct au_branch *au_br_alloc(struct super_block *sb, int new_nbranch,
 		return add_branch; /* success */
 
 out_wbr:
-	kfree(add_branch->br_wbr);
+	if (add_branch->br_wbr)
+		au_delayed_kfree(add_branch->br_wbr);
 out_hnotify:
 	au_hnotify_fin_br(add_branch);
 out_br:
-	kfree(add_branch);
+	au_delayed_kfree(add_branch);
 out:
 	return ERR_PTR(err);
 }
@@ -313,7 +315,7 @@ static int au_br_init_wh(struct super_block *sb, struct au_branch *br,
 	bindex = au_br_index(sb, br->br_id);
 	if (0 <= bindex) {
 		hdir = au_hi(d_inode(sb->s_root), bindex);
-		au_hn_imtx_lock_nested(hdir, AuLsc_I_PARENT);
+		au_hn_inode_lock_nested(hdir, AuLsc_I_PARENT);
 	} else {
 		h_dentry = au_br_dentry(br);
 		h_inode = d_inode(h_dentry);
@@ -327,14 +329,14 @@ static int au_br_init_wh(struct super_block *sb, struct au_branch *br,
 		wbr_wh_write_unlock(wbr);
 	}
 	if (hdir)
-		au_hn_imtx_unlock(hdir);
+		au_hn_inode_unlock(hdir);
 	else
 		inode_unlock(h_inode);
 	vfsub_mnt_drop_write(au_br_mnt(br));
 	br->br_perm = old_perm;
 
 	if (!err && wbr && !au_br_writable(new_perm)) {
-		kfree(wbr);
+		au_delayed_kfree(wbr);
 		br->br_wbr = NULL;
 	}
 
@@ -438,7 +440,7 @@ static void au_br_do_add_hdp(struct au_dinfo *dinfo, aufs_bindex_t bindex,
 
 	AuRwMustWriteLock(&dinfo->di_rwsem);
 
-	hdp = dinfo->di_hdentry + bindex;
+	hdp = au_hdentry(dinfo, bindex);
 	memmove(hdp + 1, hdp, sizeof(*hdp) * amount);
 	au_h_dentry_init(hdp);
 	dinfo->di_bbot++;
@@ -494,6 +496,7 @@ int au_br_add(struct super_block *sb, struct au_opt_add *add, int remount)
 	root = sb->s_root;
 	root_inode = d_inode(root);
 	IMustLock(root_inode);
+	IiMustWriteLock(root_inode);
 	err = test_add(sb, add, remount);
 	if (unlikely(err < 0))
 		goto out;
@@ -579,7 +582,7 @@ static unsigned long long au_farray_cb(struct super_block *sb, void *a,
 static struct file **au_farray_alloc(struct super_block *sb,
 				     unsigned long long *max)
 {
-	*max = atomic_long_read(&au_sbi(sb)->si_nfiles);
+	*max = au_nfiles(sb);
 	return au_array_alloc(max, au_farray_cb, sb, /*arg*/NULL);
 }
 
@@ -913,14 +916,13 @@ static void au_br_do_del_hdp(struct au_dinfo *dinfo, const aufs_bindex_t bindex,
 
 	AuRwMustWriteLock(&dinfo->di_rwsem);
 
-	hdp = dinfo->di_hdentry;
+	hdp = au_hdentry(dinfo, bindex);
 	if (bindex < bbot)
-		memmove(hdp + bindex, hdp + bindex + 1,
-			sizeof(*hdp) * (bbot - bindex));
-	hdp[0 + bbot].hd_dentry = NULL;
+		memmove(hdp, hdp + 1, sizeof(*hdp) * (bbot - bindex));
+	/* au_h_dentry_init(au_hdentry(dinfo, bbot); */
 	dinfo->di_bbot--;
 
-	p = krealloc(hdp, sizeof(*p) * bbot, AuGFP_SBILIST);
+	p = krealloc(dinfo->di_hdentry, sizeof(*p) * bbot, AuGFP_SBILIST);
 	if (p)
 		dinfo->di_hdentry = p;
 	/* harmless error */
@@ -1128,7 +1130,7 @@ static int au_ibusy(struct super_block *sb, struct aufs_ibusy __user *arg)
 	inode = ilookup(sb, ibusy.ino);
 	if (!inode
 	    || inode->i_ino == AUFS_ROOT_INO
-	    || is_bad_inode(inode))
+	    || au_is_bad_inode(inode))
 		goto out_unlock;
 
 	ii_read_lock_child(inode);
@@ -1357,7 +1359,7 @@ int au_br_mod(struct super_block *sb, struct au_opt_mod *mod, int remount,
 		if (br->br_wbr) {
 			err = au_wbr_init(br, sb, mod->perm);
 			if (unlikely(err)) {
-				kfree(br->br_wbr);
+				au_delayed_kfree(br->br_wbr);
 				br->br_wbr = NULL;
 			}
 		}
@@ -1369,7 +1371,7 @@ int au_br_mod(struct super_block *sb, struct au_opt_mod *mod, int remount,
 		if (!au_br_fhsm(mod->perm)) {
 			/* fhsm --> non-fhsm */
 			au_br_fhsm_fin(br->br_fhsm);
-			kfree(br->br_fhsm);
+			au_delayed_kfree(br->br_fhsm);
 			br->br_fhsm = NULL;
 		}
 	} else if (au_br_fhsm(mod->perm))
@@ -1381,7 +1383,8 @@ int au_br_mod(struct super_block *sb, struct au_opt_mod *mod, int remount,
 	goto out; /* success */
 
 out_bf:
-	kfree(bf);
+	if (bf)
+		au_delayed_kfree(bf);
 out:
 	AuTraceErr(err);
 	return err;

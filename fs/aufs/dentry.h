@@ -38,8 +38,22 @@ struct au_dinfo {
 	struct au_rwsem		di_rwsem;
 	aufs_bindex_t		di_btop, di_bbot, di_bwh, di_bdiropq;
 	unsigned char		di_tmpfile; /* to allow the different name */
-	struct au_hdentry	*di_hdentry;
+	union {
+		struct au_hdentry	*di_hdentry;
+		struct llist_node	di_lnode;	/* delayed free */
+	};
 } ____cacheline_aligned_in_smp;
+
+/* ---------------------------------------------------------------------- */
+
+/* flags for au_lkup_dentry() */
+#define AuLkup_ALLOW_NEG	1
+#define AuLkup_IGNORE_PERM	(1 << 1)
+#define au_ftest_lkup(flags, name)	((flags) & AuLkup_##name)
+#define au_fset_lkup(flags, name) \
+	do { (flags) |= AuLkup_##name; } while (0)
+#define au_fclr_lkup(flags, name) \
+	do { (flags) &= ~AuLkup_##name; } while (0)
 
 /* ---------------------------------------------------------------------- */
 
@@ -50,7 +64,8 @@ struct dentry *au_sio_lkup_one(struct qstr *name, struct dentry *parent);
 int au_h_verify(struct dentry *h_dentry, unsigned int udba, struct inode *h_dir,
 		struct dentry *h_parent, struct au_branch *br);
 
-int au_lkup_dentry(struct dentry *dentry, aufs_bindex_t btop, mode_t type);
+int au_lkup_dentry(struct dentry *dentry, aufs_bindex_t btop,
+		   unsigned int flags);
 int au_lkup_neg(struct dentry *dentry, aufs_bindex_t bindex, int wh);
 int au_refresh_dentry(struct dentry *dentry, struct dentry *parent);
 int au_reval_dpath(struct dentry *dentry, unsigned int sigen);
@@ -156,6 +171,12 @@ static inline unsigned int au_digen(struct dentry *d)
 static inline void au_h_dentry_init(struct au_hdentry *hdentry)
 {
 	hdentry->hd_dentry = NULL;
+}
+
+static inline struct au_hdentry *au_hdentry(struct au_dinfo *di,
+					    aufs_bindex_t bindex)
+{
+	return di->di_hdentry + bindex;
 }
 
 static inline void au_hdput(struct au_hdentry *hd)

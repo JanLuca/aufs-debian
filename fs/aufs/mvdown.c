@@ -464,7 +464,8 @@ static int au_mvd_args_intermediate(const unsigned char dmsg,
 	au_di_swap(tmp, dinfo);
 
 	/* returns the number of positive dentries */
-	err = au_lkup_dentry(a->dentry, a->mvd_bsrc + 1, /*type*/0);
+	err = au_lkup_dentry(a->dentry, a->mvd_bsrc + 1,
+			     /* AuLkup_IGNORE_PERM */ 0);
 	if (!err)
 		a->bwh = au_dbwh(a->dentry);
 	else if (err > 0)
@@ -696,7 +697,7 @@ out_free:
 	e = copy_to_user(uarg, &args->mvdown, sizeof(args->mvdown));
 	if (unlikely(e))
 		err = -EFAULT;
-	kfree(args);
+	au_delayed_kfree(args);
 out:
 	AuTraceErr(err);
 	return err;
