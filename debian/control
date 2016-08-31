@@ -3,7 +3,7 @@ Section: kernel
 Priority: optional
 Maintainer: Filesystems Group <filesystems-devel@lists.alioth.debian.org>
 Uploaders: Jan Luca Naumann <j.naumann@fu-berlin.de>
-Build-Depends: debhelper (>=9), dkms
+Build-Depends: debhelper (>=9), dkms, linux-kbuild-4.7
 Standards-Version: 3.9.8
 Homepage: http://aufs.sourceforge.net/
 Vcs-Browser: https://github.com/JanLuca/aufs4-debian
