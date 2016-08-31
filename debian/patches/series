@@ -1,2 +1,3 @@
 # You must remove unused comment lines for the released package.
 0001-remove-not-needed-include-mount-h.patch
+0002-disable-Makefile-rules-using-linux-headers.patch

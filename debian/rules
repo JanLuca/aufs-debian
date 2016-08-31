@@ -6,12 +6,14 @@ export DH_VERBOSE = 1
 #export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
 
 VERSION ?= $(shell dpkg-parsechangelog | sed -rne 's/^Version: ([0-9.]+\+[0-9.]+)[-+].*$$/\1/p')
+KERNELVERSION ?= $(shell dpkg-parsechangelog | sed -rne 's/^Version: ([0-9.]+)\+[0-9.]+[-+].*$$/\1/p')
 
 %:
 	dh $@ --with dkms
 
 override_dh_auto_build:
-	dh_auto_build --buildsystem=makefile -- usr/include/linux/aufs_type.h
+	dh_auto_build --buildsystem=makefile -- \
+	  usr/include/linux/aufs_type.h KDIR="/usr/src/linux-kbuild-$(KERNELVERSION)"
 
 override_dh_auto_install:
 	dh_install -paufs4-dkms -X.o -X.ko fs/ usr/src/aufs4-$(VERSION)
