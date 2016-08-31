@@ -1,4 +1,10 @@
-aufs4 (4.6+20160523-1) unstable; urgency=medium
+aufs4 (4.7+20160822-1) unstable; urgency=medium
+
+  * New upstream release.
+
+ -- Jan Luca Naumann <j.naumann@fu-berlin.de>  Fri, 26 Aug 2016 18:18:47 +0200
+
+aufs4 (4.6+20160523-1) UNRELEASED; urgency=medium
 
   * Initial release (Closes: #832451)
 
