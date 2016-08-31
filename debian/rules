@@ -20,7 +20,7 @@ override_dh_auto_install:
 	dh_install -paufs4-dkms -X.o -X.ko include/ usr/src/aufs4-$(VERSION)
 	dh_install -paufs4-dkms Makefile usr/src/aufs4-$(VERSION)
 	dh_install -paufs4-dkms config.mk usr/src/aufs4-$(VERSION)
-	dh_install -paufs4-headers usr/include usr/
+	dh_install -paufs4-headers usr/include/linux/aufs_type.h usr/include/linux
 
 override_dh_dkms:
 	dh_dkms -V
