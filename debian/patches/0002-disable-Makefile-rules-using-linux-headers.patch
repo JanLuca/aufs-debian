@@ -1,8 +1,9 @@
 Description: Use only stuff included in linux-kbuild
  This patch removes all calls of files that are only included
- in linux-headers. Since there is no single linux-headers
- package that can be used as Build-Depends, the unnecessary
- calls of files from this packages are removed.
+ in linux-headers during package build time. Since there is
+ no single linux-headers package that can be used as
+ Build-Depends, the unnecessary calls of files from these 
+ packages are removed.
 Author: Jan Luca Naumann <j.naumann@fu-berlin.de>
 Forwarded: not-needed
 Last-Update: 2016-08-31
@@ -10,16 +11,22 @@ Last-Update: 2016-08-31
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/Makefile
 +++ b/Makefile
-@@ -23,7 +23,7 @@
+@@ -20,10 +20,14 @@
+ 
+ MakeMod = -C ${KDIR} M=${CURDIR}/fs/aufs EXTRA_CFLAGS="${EXTRA_CFLAGS}"
+ 
++DISABLEHEADERDEPS ?= false
++
  all: aufs.ko usr/include/linux/aufs_type.h
  
  clean:
--	${MAKE} ${MakeMod} $@
-+#	${MAKE} ${MakeMod} $@
++ifneq ($(DISABLEHEADERDEPS),true)
+ 	${MAKE} ${MakeMod} $@
++endif
  	find . -type f -name '*~' | xargs -r ${RM}
  	${RM} -r aufs.ko usr
  
-@@ -45,6 +45,5 @@
+@@ -45,6 +49,5 @@
  usr/include/linux/aufs_type.h:
  	${MAKE} -rR -C ${KDIR} \
  		-f scripts/Makefile.headersinst \

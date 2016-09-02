@@ -11,9 +11,13 @@ KERNELVERSION ?= $(shell dpkg-parsechangelog | sed -rne 's/^Version: ([0-9.]+)\+
 %:
 	dh $@ --with dkms
 
+override_dh_auto_clean:
+	dh_auto_clean -- DISABLEHEADERDEPS="true"
+
 override_dh_auto_build:
 	dh_auto_build --buildsystem=makefile -- \
-	  usr/include/linux/aufs_type.h KDIR="/usr/src/linux-kbuild-$(KERNELVERSION)"
+	  usr/include/linux/aufs_type.h KDIR="/usr/src/linux-kbuild-$(KERNELVERSION)" \
+	  DISABLEHEADERDEPS="true"
 
 override_dh_auto_install:
 	dh_install -paufs4-dkms -X.o -X.ko fs/ usr/src/aufs4-$(VERSION)
