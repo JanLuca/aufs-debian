@@ -13,6 +13,7 @@ Package: aufs4-dkms
 Architecture: linux-any
 Multi-Arch: foreign
 Depends: ${misc:Depends}, ${shlibs:Depends}
+Recommends: aufs-tools
 Suggests: aufs4-headers
 Description: DKMS files to build and install the aufs4 module
  The aufs driver provides a unification file system for the Linux kernel. It
@@ -21,6 +22,9 @@ Description: DKMS files to build and install the aufs4 module
  of the source directories.
  .
  This package contains the DKMS files to build and install the aufs4 module.
+ .
+ To install this package you have to install manually the header files of your
+ current kernel (usually included in the "linux-headers-<your architecture>").
 
 Package: aufs4-headers
 Architecture: linux-any
