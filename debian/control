@@ -1,4 +1,4 @@
-Source: aufs4
+Source: aufs
 Section: kernel
 Priority: optional
 Maintainer: Filesystems Group <filesystems-devel@lists.alioth.debian.org>
@@ -9,33 +9,32 @@ Homepage: http://aufs.sourceforge.net/
 Vcs-Browser: https://github.com/JanLuca/aufs4-debian
 Vcs-Git: https://github.com/JanLuca/aufs4-debian.git
 
-Package: aufs4-dkms
+Package: aufs-dkms
 Architecture: linux-any
 Multi-Arch: foreign
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Recommends: aufs-tools
-Suggests: aufs4-headers
-Description: DKMS files to build and install the aufs4 module
- The aufs driver provides a unification file system for the Linux kernel. It
- allows one to virtually merge the contents of several directories and/or stack
- them, so that apparent file changes in the aufs end in file changes in only one
+Suggests: aufs-dev
+Description: DKMS files to build and install aufs4
+ The aufs driver provides a union mount for Linux filesystems. It allows one
+ to virtually merge the contents of several directories and/or stack them, so
+ that file changes in the aufs union mount end up as changes in only one
  of the source directories.
  .
- This package contains the DKMS files to build and install the aufs4 module.
+ This package contains the DKMS files to build and install aufs4.
  .
- To install this package you have to install manually the header files of your
- current kernel (usually included in the "linux-headers-<your architecture>").
+ To install this package, you have to install the header files for your current
+ kernel manually (usually included in the "linux-headers-<your architecture>").
 
-Package: aufs4-headers
+Package: aufs-dev
 Architecture: linux-any
 Multi-Arch: foreign
 Depends: ${misc:Depends}, ${shlibs:Depends}
-Recommends: aufs4-dkms
-Description: Public header files of the aufs4 module
- The aufs driver provides a unification file system for the Linux kernel. It
- allows one to virtually merge the contents of several directories and/or stack
- them, so that apparent file changes in the aufs end in file changes in only one
+Recommends: aufs-dkms
+Description: Development files for aufs4
+ The aufs driver provides a union mount for Linux filesystems. It allows one
+ to virtually merge the contents of several directories and/or stack them, so
+ that file changes in the aufs union mount end up as changes in only one
  of the source directories.
  .
- This package contains the public header files of the aufs4 module.
-
+ This package contains the development files for aufs4.

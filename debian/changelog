@@ -1,6 +1,9 @@
-aufs4 (4.7+20160912-1) UNRELEASED; urgency=medium
+aufs (4.7+20160912-1) UNRELEASED; urgency=medium
 
   * New upstream release.
+  * Rename source package to "aufs".
+  * Rename binary package "aufs4-dkms" to "aufs-dkms".
+  * Rename binary package "aufs4-headers" to "aufs-dev".
 
  -- Jan Luca Naumann <j.naumann@fu-berlin.de>  Mon, 19 Sep 2016 17:44:03 +0200
 
@@ -12,6 +15,6 @@ aufs4 (4.7+20160822-1) UNRELEASED; urgency=medium
 
 aufs4 (4.6+20160523-1) UNRELEASED; urgency=medium
 
-  * Initial release (Closes: #832451)
+  * Initial release. (Closes: #832451)
 
  -- Jan Luca Naumann <j.naumann@fu-berlin.de>  Sun, 24 Jul 2016 18:01:00 +0200

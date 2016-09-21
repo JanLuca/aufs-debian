@@ -1,4 +1,4 @@
-PACKAGE_NAME="aufs4"
+PACKAGE_NAME="aufs"
 PACKAGE_VERSION=#MODULE_VERSION#
 CLEAN="make -C ${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build clean"
 MAKE[0]="make -C ${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build aufs.ko"
