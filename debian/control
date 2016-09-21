@@ -31,6 +31,8 @@ Architecture: linux-any
 Multi-Arch: foreign
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Recommends: aufs-dkms
+Replaces: linux-libc-dev (<< 3.18-1~exp1)
+Breaks: linux-libc-dev (<< 3.18-1~exp1)
 Description: Development files for aufs
  The aufs driver provides a union mount for Linux filesystems. It allows one
  to virtually merge the contents of several directories and/or stack them, so
