@@ -1,4 +1,4 @@
-aufs (4.7+20160912-1) UNRELEASED; urgency=medium
+aufs (4.7+20160912-1) unstable; urgency=medium
 
   * New upstream release.
   * Rename source package to "aufs".

@@ -6,8 +6,8 @@ Uploaders: Jan Luca Naumann <j.naumann@fu-berlin.de>
 Build-Depends: debhelper (>=9), dkms, linux-kbuild-4.7
 Standards-Version: 3.9.8
 Homepage: http://aufs.sourceforge.net/
-Vcs-Browser: https://github.com/JanLuca/aufs4-debian
-Vcs-Git: https://github.com/JanLuca/aufs4-debian.git
+Vcs-Browser: https://github.com/JanLuca/aufs-debian
+Vcs-Git: https://github.com/JanLuca/aufs-debian.git
 
 Package: aufs-dkms
 Architecture: linux-any
