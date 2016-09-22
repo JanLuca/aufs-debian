@@ -15,13 +15,13 @@ Multi-Arch: foreign
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Recommends: aufs-tools
 Suggests: aufs-dev
-Description: DKMS files to build and install aufs4
+Description: DKMS files to build and install aufs
  The aufs driver provides a union mount for Linux filesystems. It allows one
  to virtually merge the contents of several directories and/or stack them, so
  that file changes in the aufs union mount end up as changes in only one
  of the source directories.
  .
- This package contains the DKMS files to build and install aufs4.
+ This package contains the DKMS files to build and install aufs.
  .
  To install this package, you have to install the header files for your current
  kernel manually (usually included in the "linux-headers-<your architecture>").
@@ -31,10 +31,10 @@ Architecture: linux-any
 Multi-Arch: foreign
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Recommends: aufs-dkms
-Description: Development files for aufs4
+Description: Development files for aufs
  The aufs driver provides a union mount for Linux filesystems. It allows one
  to virtually merge the contents of several directories and/or stack them, so
  that file changes in the aufs union mount end up as changes in only one
  of the source directories.
  .
- This package contains the development files for aufs4.
+ This package contains the development files for aufs.
