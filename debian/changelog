@@ -1,9 +1,11 @@
 aufs (4.7+20160912-2) unstable; urgency=medium
 
-  * aufs-dev: Add Breaks/Replaces: linux-libc-dev (<< 3.18-1~exp1)
-              relation (Closes: #838626)
-  * aufs-dkms: Set KDIR to correct value for DKMS builds. (Closes: #838667)
-  * aufs-dkms: Add BUILD_EXCLUSIVE_KERNEL directive to DKMS-config file.
+  * debian/aufs-dkms.dkms:
+     - KDIR to correct value for DKMS builds. (Closes: #838667)
+     - Add BUILD_EXCLUSIVE_KERNEL directive.
+  * debian/control:
+     - Add Breaks/Replaces: linux-libc-dev (<< 3.18-1~exp1)
+       relation for aufs-dev binary package (Closes: #838626).
 
  -- Jan Luca Naumann <j.naumann@fu-berlin.de>  Fri, 23 Sep 2016 23:33:21 +0200
 
