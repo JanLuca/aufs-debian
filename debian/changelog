@@ -1,3 +1,11 @@
+aufs (4.8+20161010-1) unstable; urgency=medium
+
+  * New upstream release.
+  * debian/control: Update Build-Depends to use linux-kbuild-4.8.
+  * debian/aufs-dkms.dkms: Update BUILD_EXCLUSIVE_KERNEL to match "4.8.*".
+
+ -- Jan Luca Naumann <j.naumann@fu-berlin.de>  Thu, 20 Oct 2016 18:57:26 +0200
+
 aufs (4.7+20160912-2) unstable; urgency=medium
 
   * debian/aufs-dkms.dkms:
