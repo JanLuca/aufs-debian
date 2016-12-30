@@ -39,18 +39,16 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  	test -s $@
 --- a/config.mk
 +++ b/config.mk
-@@ -49,6 +49,10 @@
+@@ -49,6 +49,8 @@
  
  ########################################
  
 +ifneq ($(DISABLEHEADERDEPS),true)
 +
-+$(error hier)
-+
  ifdef CONFIG_AUFS_SBILIST
  ifndef CONFIG_AUFS_MAGIC_SYSRQ
  ifndef CONFIG_PROC_FS
-@@ -128,3 +132,5 @@
+@@ -128,3 +130,5 @@
  $(warning AUFS_BR_FUSE is enabled but FUSE_FS)
  endif
  endif

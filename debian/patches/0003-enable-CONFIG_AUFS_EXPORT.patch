@@ -1,0 +1,20 @@
+Description: Enable build option CONFIG_AUFS_EXPORT.
+ Enable the build option CONFIG_AUFS_EXPORT, as implicit
+ in Debian bug #843846.
+Author: Jan Luca Naumann <j.naumann@fu-berlin.de>
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=843846
+Forwarded: not-needed
+Last-Update: 2016-12-17
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/config.mk
++++ b/config.mk
+@@ -8,7 +8,7 @@
+ CONFIG_AUFS_SBILIST = y
+ CONFIG_AUFS_HNOTIFY =
+ CONFIG_AUFS_HFSNOTIFY =
+-CONFIG_AUFS_EXPORT =
++CONFIG_AUFS_EXPORT = y
+ CONFIG_AUFS_XATTR =
+ CONFIG_AUFS_FHSM =
+ CONFIG_AUFS_RDU =
