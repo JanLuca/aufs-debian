@@ -1,3 +1,12 @@
+aufs (4.8+20161219-1) unstable; urgency=medium
+
+  * New upstream release.
+    - Dependency bugfix of header include "linux/fs/mount.h". (Closes: #843846)
+  * Remove "debian/patches/0001-remove-not-needed-include-mount-h.patch",
+    bug fixed by upstream.
+
+ -- Jan Luca Naumann <j.naumann@fu-berlin.de>  Sat, 17 Dec 2016 15:39:11 +0100
+
 aufs (4.8+20161010-1) unstable; urgency=medium
 
   * New upstream release.

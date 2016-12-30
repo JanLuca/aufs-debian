@@ -11,12 +11,16 @@ Last-Update: 2016-08-31
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/Makefile
 +++ b/Makefile
-@@ -20,10 +20,14 @@
- 
- MakeMod = -C ${KDIR} M=${CURDIR}/fs/aufs EXTRA_CFLAGS="${EXTRA_CFLAGS}"
+@@ -10,6 +10,8 @@
+ $(warning could not find kernel config file. internal auto-config may fail)
+ endif
  
 +DISABLEHEADERDEPS ?= false
 +
+ CONFIG_AUFS_FS = m
+ AUFS_DEF_CONFIG = -DCONFIG_AUFS_FS_MODULE -UCONFIG_AUFS
+ include config.mk
+@@ -23,7 +25,9 @@
  all: aufs.ko usr/include/linux/aufs_type.h
  
  clean:
@@ -33,3 +37,22 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -		-f Makefile \
  		obj=${d}/include/uapi/linux dst=${d}/usr/include/linux
  	test -s $@
+--- a/config.mk
++++ b/config.mk
+@@ -49,6 +49,10 @@
+ 
+ ########################################
+ 
++ifneq ($(DISABLEHEADERDEPS),true)
++
++$(error hier)
++
+ ifdef CONFIG_AUFS_SBILIST
+ ifndef CONFIG_AUFS_MAGIC_SYSRQ
+ ifndef CONFIG_PROC_FS
+@@ -128,3 +132,5 @@
+ $(warning AUFS_BR_FUSE is enabled but FUSE_FS)
+ endif
+ endif
++
++endif # DISABLEHEADERDEPS
