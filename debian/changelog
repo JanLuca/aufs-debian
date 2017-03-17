@@ -1,3 +1,9 @@
+aufs (4.9+20161219-2) unstable; urgency=medium
+
+  * Fix symlink of README file in /usr/share/doc/aufs-dkms. (Closes: #857783)
+
+ -- Jan Luca Naumann <j.naumann@fu-berlin.de>  Fri, 17 Mar 2017 21:16:52 +0100
+
 aufs (4.9+20161219-1) unstable; urgency=medium
 
   * New upstream release.
