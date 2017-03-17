@@ -3,7 +3,7 @@ Section: kernel
 Priority: optional
 Maintainer: Filesystems Group <filesystems-devel@lists.alioth.debian.org>
 Uploaders: Jan Luca Naumann <j.naumann@fu-berlin.de>
-Build-Depends: debhelper (>=9), dkms, linux-kbuild-4.8
+Build-Depends: debhelper (>=9), dkms, linux-kbuild-4.9
 Standards-Version: 3.9.8
 Homepage: http://aufs.sourceforge.net/
 Vcs-Browser: https://github.com/JanLuca/aufs-debian
@@ -12,7 +12,7 @@ Vcs-Git: https://github.com/JanLuca/aufs-debian.git
 Package: aufs-dkms
 Architecture: linux-any
 Multi-Arch: foreign
-Depends: ${misc:Depends}, ${shlibs:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}, linux-kbuild-4.9
 Recommends: aufs-tools
 Suggests: aufs-dev
 Description: DKMS files to build and install aufs
