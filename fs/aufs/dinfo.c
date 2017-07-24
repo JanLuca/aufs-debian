@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2016 Junjiro R. Okajima
+ * Copyright (C) 2005-2017 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ struct au_dinfo *au_di_alloc(struct super_block *sb, unsigned int lsc)
 		goto out;
 	}
 
-	au_cache_dfree_dinfo(dinfo);
+	au_cache_free_dinfo(dinfo);
 	dinfo = NULL;
 
 out:
@@ -73,8 +73,8 @@ void au_di_free(struct au_dinfo *dinfo)
 		while (bindex++ <= bbot)
 			au_hdput(p++);
 	}
-	au_delayed_kfree(dinfo->di_hdentry);
-	au_cache_dfree_dinfo(dinfo);
+	kfree(dinfo->di_hdentry);
+	au_cache_free_dinfo(dinfo);
 }
 
 void au_di_swap(struct au_dinfo *a, struct au_dinfo *b)
@@ -276,11 +276,11 @@ void di_write_lock2_child(struct dentry *d1, struct dentry *d2, int isdir)
 		  || d_inode(d1) == d_inode(d2)
 		  || d1->d_sb != d2->d_sb);
 
-	if (isdir && au_test_subdir(d1, d2)) {
+	if ((isdir && au_test_subdir(d1, d2))
+	    || d1 < d2) {
 		di_write_lock_child(d1);
 		di_write_lock_child2(d2);
 	} else {
-		/* there should be no races */
 		di_write_lock_child(d2);
 		di_write_lock_child2(d1);
 	}
@@ -292,11 +292,11 @@ void di_write_lock2_parent(struct dentry *d1, struct dentry *d2, int isdir)
 		  || d_inode(d1) == d_inode(d2)
 		  || d1->d_sb != d2->d_sb);
 
-	if (isdir && au_test_subdir(d1, d2)) {
+	if ((isdir && au_test_subdir(d1, d2))
+	    || d1 < d2) {
 		di_write_lock_parent(d1);
 		di_write_lock_parent2(d2);
 	} else {
-		/* there should be no races */
 		di_write_lock_parent(d2);
 		di_write_lock_parent2(d1);
 	}

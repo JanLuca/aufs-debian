@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2016 Junjiro R. Okajima
+ * Copyright (C) 2005-2017 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -438,28 +438,6 @@ static match_table_t au_wbr_create_policy = {
 	{-1, NULL}
 };
 
-/*
- * cf. linux/lib/parser.c and cmdline.c
- * gave up calling memparse() since it uses simple_strtoull() instead of
- * kstrto...().
- */
-static int noinline_for_stack
-au_match_ull(substring_t *s, unsigned long long *result)
-{
-	int err;
-	unsigned int len;
-	char a[32];
-
-	err = -ERANGE;
-	len = s->to - s->from;
-	if (len + 1 <= sizeof(a)) {
-		memcpy(a, s->from, len);
-		a[len] = '\0';
-		err = kstrtoull(a, 0, result);
-	}
-	return err;
-}
-
 static int au_wbr_mfs_wmark(substring_t *arg, char *str,
 			    struct au_opt_wbr_create *create)
 {
@@ -467,7 +445,7 @@ static int au_wbr_mfs_wmark(substring_t *arg, char *str,
 	unsigned long long ull;
 
 	err = 0;
-	if (!au_match_ull(arg, &ull))
+	if (!match_u64(arg, &ull))
 		create->mfsrr_watermark = ull;
 	else {
 		pr_err("bad integer in %s\n", str);
@@ -1264,7 +1242,7 @@ int au_opts_parse(struct super_block *sb, char *str, struct au_opts *opts)
 		}
 	}
 
-	au_delayed_kfree(a);
+	kfree(a);
 	dump_opts(opts);
 	if (unlikely(err))
 		au_opts_free(opts);
@@ -1527,7 +1505,6 @@ static int au_opt_br(struct super_block *sb, struct au_opt *opt,
 		}
 		break;
 	}
-
 	return err;
 }
 
@@ -1688,8 +1665,7 @@ int au_opts_verify(struct super_block *sb, unsigned long sb_flags,
 		au_hn_inode_unlock(hdir);
 
 		if (!err && do_free) {
-			if (wbr)
-				au_delayed_kfree(wbr);
+			kfree(wbr);
 			br->br_wbr = NULL;
 		}
 	}

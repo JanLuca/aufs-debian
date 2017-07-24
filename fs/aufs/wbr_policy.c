@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2016 Junjiro R. Okajima
+ * Copyright (C) 2005-2017 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -461,7 +461,7 @@ static void au_mfs(struct dentry *dentry, struct dentry *parent)
 
 	mfs->mfsrr_bytes = bavail;
 	AuDbg("b%d\n", mfs->mfs_bindex);
-	au_delayed_kfree(st);
+	kfree(st);
 }
 
 static int au_wbr_create_mfs(struct dentry *dentry, unsigned int flags)

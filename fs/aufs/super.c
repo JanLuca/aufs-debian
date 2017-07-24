@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2016 Junjiro R. Okajima
+ * Copyright (C) 2005-2017 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -46,7 +46,7 @@ static void aufs_destroy_inode_cb(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
 
-	au_cache_dfree_icntnr(container_of(inode, struct au_icntnr, vfs_inode));
+	au_cache_free_icntnr(container_of(inode, struct au_icntnr, vfs_inode));
 }
 
 static void aufs_destroy_inode(struct inode *inode)
@@ -447,12 +447,10 @@ static int aufs_sync_fs(struct super_block *sb, int wait)
 			continue;
 
 		h_sb = au_sbr_sb(sb, bindex);
-		if (h_sb->s_op->sync_fs) {
-			e = h_sb->s_op->sync_fs(h_sb, wait);
-			if (unlikely(e && !err))
-				err = e;
-			/* go on even if an error happens */
-		}
+		e = vfsub_sync_filesystem(h_sb, wait);
+		if (unlikely(e && !err))
+			err = e;
+		/* go on even if an error happens */
 	}
 	si_read_unlock(sb);
 
@@ -836,7 +834,7 @@ static int aufs_remount_fs(struct super_block *sb, int *flags, char *data)
 out_mtx:
 	inode_unlock(inode);
 out_opts:
-	au_delayed_free_page((unsigned long)opts.opt);
+	free_page((unsigned long)opts.opt);
 out:
 	err = cvt_err(err);
 	AuTraceErr(err);
@@ -977,7 +975,7 @@ out_info:
 	kobject_put(&sbinfo->si_kobj);
 	sb->s_fs_info = NULL;
 out_opts:
-	au_delayed_free_page((unsigned long)opts.opt);
+	free_page((unsigned long)opts.opt);
 out:
 	AuTraceErr(err);
 	err = cvt_err(err);
