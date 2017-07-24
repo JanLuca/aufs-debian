@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2016 Junjiro R. Okajima
+ * Copyright (C) 2005-2017 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -345,7 +345,7 @@ out_unlock:
 	if (!try_aopen)
 		aufs_read_unlock(dentry, AuLock_DW);
 out_free:
-	au_delayed_kfree(a);
+	kfree(a);
 out:
 	return err;
 }
@@ -455,18 +455,11 @@ int aufs_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
 		goto out_parent;
 
 	h_parent = au_h_dptr(parent, bindex);
-	err = inode_permission(d_inode(h_parent), MAY_WRITE | MAY_EXEC);
-	if (unlikely(err))
+	h_dentry = vfs_tmpfile(h_parent, mode, /*open_flag*/0);
+	if (IS_ERR(h_dentry)) {
+		err = PTR_ERR(h_dentry);
 		goto out_mnt;
-
-	err = -ENOMEM;
-	h_dentry = d_alloc(h_parent, &dentry->d_name);
-	if (unlikely(!h_dentry))
-		goto out_mnt;
-
-	err = h_dir->i_op->tmpfile(h_dir, h_dentry, mode);
-	if (unlikely(err))
-		goto out_dentry;
+	}
 
 	au_set_dbtop(dentry, bindex);
 	au_set_dbbot(dentry, bindex);
@@ -487,9 +480,8 @@ int aufs_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
 		if (au_ibtop(dir) == au_dbtop(dentry))
 			au_cpup_attr_timesizes(dir);
 	}
-
-out_dentry:
 	dput(h_dentry);
+
 out_mnt:
 	vfsub_mnt_drop_write(h_mnt);
 out_parent:
@@ -813,7 +805,7 @@ out_unlock:
 	}
 	aufs_read_and_write_unlock2(dentry, src_dentry);
 out_kfree:
-	au_delayed_kfree(a);
+	kfree(a);
 out:
 	AuTraceErr(err);
 	return err;
@@ -922,7 +914,7 @@ out_unlock:
 	}
 	aufs_read_unlock(dentry, AuLock_DW);
 out_free:
-	au_delayed_kfree(a);
+	kfree(a);
 out:
 	return err;
 }

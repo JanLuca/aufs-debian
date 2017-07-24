@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2016 Junjiro R. Okajima
+ * Copyright (C) 2005-2017 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -357,11 +357,64 @@ int au_copy_file(struct file *dst, struct file *src, loff_t len)
 	dst->f_pos = 0;
 	err = au_do_copy_file(dst, src, len, buf, blksize);
 	if (do_kfree)
-		au_delayed_kfree(buf);
+		kfree(buf);
 	else
-		au_delayed_free_page((unsigned long)buf);
+		free_page((unsigned long)buf);
 
 out:
+	return err;
+}
+
+static int au_do_copy(struct file *dst, struct file *src, loff_t len)
+{
+	int err;
+	struct super_block *h_src_sb;
+	struct inode *h_src_inode;
+
+	h_src_inode = file_inode(src);
+	h_src_sb = h_src_inode->i_sb;
+
+	/* XFS acquires inode_lock */
+	if (!au_test_xfs(h_src_sb))
+		err = au_copy_file(dst, src, len);
+	else {
+		inode_unlock(h_src_inode);
+		err = au_copy_file(dst, src, len);
+		inode_lock(h_src_inode);
+	}
+
+	return err;
+}
+
+static int au_clone_or_copy(struct file *dst, struct file *src, loff_t len)
+{
+	int err;
+	struct super_block *h_src_sb;
+	struct inode *h_src_inode;
+
+	h_src_inode = file_inode(src);
+	h_src_sb = h_src_inode->i_sb;
+	if (h_src_sb != file_inode(dst)->i_sb
+	    || !dst->f_op->clone_file_range) {
+		err = au_do_copy(dst, src, len);
+		goto out;
+	}
+
+	if (!au_test_nfs(h_src_sb)) {
+		inode_unlock(h_src_inode);
+		err = vfsub_clone_file_range(src, dst, len);
+		inode_lock(h_src_inode);
+	} else
+		err = vfsub_clone_file_range(src, dst, len);
+	/* older XFS has a condition in cloning */
+	if (unlikely(err != -EOPNOTSUPP))
+		goto out;
+
+	/* the backend fs on NFS may not support cloning */
+	err = au_do_copy(dst, src, len);
+
+out:
+	AuTraceErr(err);
 	return err;
 }
 
@@ -393,7 +446,7 @@ static int au_cp_regular(struct au_cp_generic *cpg)
 			.label = &&out_src
 		}
 	};
-	struct super_block *sb;
+	struct super_block *sb, *h_src_sb;
 	struct inode *h_src_inode;
 	struct task_struct *tsk = current;
 
@@ -411,9 +464,10 @@ static int au_cp_regular(struct au_cp_generic *cpg)
 
 	/* try stopping to update while we copyup */
 	h_src_inode = d_inode(file[SRC].dentry);
-	if (!au_test_nfs(h_src_inode->i_sb))
+	h_src_sb = h_src_inode->i_sb;
+	if (!au_test_nfs(h_src_sb))
 		IMustLock(h_src_inode);
-	err = au_copy_file(file[DST].file, file[SRC].file, cpg->len);
+	err = au_clone_or_copy(file[DST].file, file[SRC].file, cpg->len);
 
 	/* i wonder if we had O_NO_DELAY_FPUT flag */
 	if (tsk->flags & PF_KTHREAD)
@@ -461,10 +515,10 @@ static int au_do_cpup_regular(struct au_cp_generic *cpg,
 		h_path.mnt = au_sbr_mnt(cpg->dentry->d_sb, cpg->bsrc);
 		h_src_attr->iflags = h_src_inode->i_flags;
 		if (!au_test_nfs(h_src_inode->i_sb))
-			err = vfs_getattr(&h_path, &h_src_attr->st);
+			err = vfsub_getattr(&h_path, &h_src_attr->st);
 		else {
 			inode_unlock(h_src_inode);
-			err = vfs_getattr(&h_path, &h_src_attr->st);
+			err = vfsub_getattr(&h_path, &h_src_attr->st);
 			inode_lock_nested(h_src_inode, AuLsc_I_CHILD);
 		}
 		if (unlikely(err)) {
@@ -504,12 +558,6 @@ static int au_do_cpup_symlink(struct path *h_path, struct dentry *h_src,
 		char *k;
 		char __user *u;
 	} sym;
-	struct inode *h_inode = d_inode(h_src);
-	const struct inode_operations *h_iop = h_inode->i_op;
-
-	err = -ENOSYS;
-	if (unlikely(!h_iop->readlink))
-		goto out;
 
 	err = -ENOMEM;
 	sym.k = (void *)__get_free_page(GFP_NOFS);
@@ -519,7 +567,7 @@ static int au_do_cpup_symlink(struct path *h_path, struct dentry *h_src,
 	/* unnecessary to support mmap_sem since symlink is not mmap-able */
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
-	symlen = h_iop->readlink(h_src, sym.u, PATH_MAX);
+	symlen = vfs_readlink(h_src, sym.u, PATH_MAX);
 	err = symlen;
 	set_fs(old_fs);
 
@@ -527,7 +575,7 @@ static int au_do_cpup_symlink(struct path *h_path, struct dentry *h_src,
 		sym.k[symlen] = 0;
 		err = vfsub_symlink(h_dir, h_path, sym.k);
 	}
-	au_delayed_free_page((unsigned long)sym.k);
+	free_page((unsigned long)sym.k);
 
 out:
 	return err;
@@ -901,7 +949,7 @@ out_rev:
 	}
 out_parent:
 	dput(dst_parent);
-	au_delayed_kfree(a);
+	kfree(a);
 out:
 	return err;
 }

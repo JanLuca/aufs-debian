@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2016 Junjiro R. Okajima
+ * Copyright (C) 2005-2017 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -273,7 +273,7 @@ int au_do_open(struct file *file, struct au_do_open_args *args)
 	}
 	if (unlikely(err)) {
 		finfo->fi_hdir = NULL;
-		au_finfo_fin(file, /*atonce*/0);
+		au_finfo_fin(file);
 	}
 
 out:
@@ -593,7 +593,6 @@ out:
 
 static void au_do_refresh_dir(struct file *file)
 {
-	int execed;
 	aufs_bindex_t bindex, bbot, new_bindex, brid;
 	struct au_hfile *p, tmp, *q;
 	struct au_finfo *finfo;
@@ -632,7 +631,6 @@ static void au_do_refresh_dir(struct file *file)
 		}
 	}
 
-	execed = vfsub_file_execed(file);
 	p = fidir->fd_hfile;
 	if (!au_test_mmapped(file) && !d_unlinked(file->f_path.dentry)) {
 		bbot = au_sbbot(sb);
@@ -641,14 +639,14 @@ static void au_do_refresh_dir(struct file *file)
 			if (p->hf_file) {
 				if (file_inode(p->hf_file))
 					break;
-				au_hfput(p, execed);
+				au_hfput(p, /*execed*/0);
 			}
 	} else {
 		bbot = au_br_index(sb, brid);
 		for (finfo->fi_btop = 0; finfo->fi_btop < bbot;
 		     finfo->fi_btop++, p++)
 			if (p->hf_file)
-				au_hfput(p, execed);
+				au_hfput(p, /*execed*/0);
 		bbot = au_sbbot(sb);
 	}
 
@@ -658,7 +656,7 @@ static void au_do_refresh_dir(struct file *file)
 		if (p->hf_file) {
 			if (file_inode(p->hf_file))
 				break;
-			au_hfput(p, execed);
+			au_hfput(p, /*execed*/0);
 		}
 	AuDebugOn(fidir->fd_bbot < finfo->fi_btop);
 }
@@ -720,7 +718,7 @@ out:
 
 /* common function to regular file and dir */
 int au_reval_and_lock_fdi(struct file *file, int (*reopen)(struct file *file),
-			  int wlock)
+			  int wlock, unsigned int fi_lsc)
 {
 	int err;
 	unsigned int sigen, figen;
@@ -733,9 +731,12 @@ int au_reval_and_lock_fdi(struct file *file, int (*reopen)(struct file *file),
 	dentry = file->f_path.dentry;
 	inode = d_inode(dentry);
 	sigen = au_sigen(dentry->d_sb);
-	fi_write_lock(file);
+	fi_write_lock_nested(file, fi_lsc);
 	figen = au_figen(file);
-	di_write_lock_child(dentry);
+	if (!fi_lsc)
+		di_write_lock_child(dentry);
+	else
+		di_write_lock_child2(dentry);
 	btop = au_dbtop(dentry);
 	pseudo_link = (btop != au_ibtop(inode));
 	if (sigen == figen && !pseudo_link && au_fbtop(file) == btop) {

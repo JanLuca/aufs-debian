@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2016 Junjiro R. Okajima
+ * Copyright (C) 2005-2017 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -82,6 +82,8 @@ int vfsub_test_mntns(struct vfsmount *mnt, struct super_block *h_sb);
 #else
 AuStubInt0(vfsub_test_mntns, struct vfsmount *mnt, struct super_block *h_sb);
 #endif
+
+int vfsub_sync_filesystem(struct super_block *h_sb, int wait);
 
 /* ---------------------------------------------------------------------- */
 
@@ -264,6 +266,36 @@ int vfsub_trunc(struct path *h_path, loff_t length, unsigned int attr,
 		struct file *h_file);
 int vfsub_fsync(struct file *file, struct path *path, int datasync);
 
+/*
+ * re-use branch fs's ioctl(FICLONE) while aufs itself doesn't support such
+ * ioctl.
+ */
+static inline int vfsub_clone_file_range(struct file *src, struct file *dst,
+					 u64 len)
+{
+	int err;
+
+	lockdep_off();
+	err = vfs_clone_file_range(src, 0, dst, 0, len);
+	lockdep_on();
+
+	return err;
+}
+
+/* copy_file_range(2) is a systemcall */
+static inline ssize_t vfsub_copy_file_range(struct file *src, loff_t src_pos,
+					    struct file *dst, loff_t dst_pos,
+					    size_t len, unsigned int flags)
+{
+	ssize_t ssz;
+
+	lockdep_off();
+	ssz = vfs_copy_file_range(src, src_pos, dst, dst_pos, len, flags);
+	lockdep_on();
+
+	return ssz;
+}
+
 /* ---------------------------------------------------------------------- */
 
 static inline loff_t vfsub_llseek(struct file *file, loff_t offset, int origin)
@@ -286,6 +318,11 @@ int vfsub_notify_change(struct path *path, struct iattr *ia,
 			struct inode **delegated_inode);
 int vfsub_unlink(struct inode *dir, struct path *path,
 		 struct inode **delegated_inode, int force);
+
+static inline int vfsub_getattr(const struct path *path, struct kstat *st)
+{
+	return vfs_getattr(path, st, STATX_BASIC_STATS, AT_STATX_SYNC_AS_STAT);
+}
 
 /* ---------------------------------------------------------------------- */
 

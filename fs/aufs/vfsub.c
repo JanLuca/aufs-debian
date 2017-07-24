@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2016 Junjiro R. Okajima
+ * Copyright (C) 2005-2017 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,6 +42,19 @@ int vfsub_test_mntns(struct vfsmount *mnt, struct super_block *h_sb)
 }
 #endif
 
+int vfsub_sync_filesystem(struct super_block *h_sb, int wait)
+{
+	int err;
+
+	lockdep_off();
+	down_read(&h_sb->s_umount);
+	err = __sync_filesystem(h_sb, wait);
+	up_read(&h_sb->s_umount);
+	lockdep_on();
+
+	return err;
+}
+
 /* ---------------------------------------------------------------------- */
 
 int vfsub_update_h_iattr(struct path *h_path, int *did)
@@ -59,7 +72,7 @@ int vfsub_update_h_iattr(struct path *h_path, int *did)
 	h_sb = h_path->dentry->d_sb;
 	*did = (!au_test_fs_remote(h_sb) && au_test_fs_refresh_iattr(h_sb));
 	if (*did)
-		err = vfs_getattr(h_path, &st);
+		err = vfsub_getattr(h_path, &st);
 
 	return err;
 }
@@ -585,6 +598,7 @@ int vfsub_iterate_dir(struct file *file, struct dir_context *ctx)
 	lockdep_on();
 	if (err >= 0)
 		vfsub_update_h_iattr(&file->f_path, /*did*/NULL); /*ignore*/
+
 	return err;
 }
 

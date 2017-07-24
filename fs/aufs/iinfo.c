@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2016 Junjiro R. Okajima
+ * Copyright (C) 2005-2017 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -268,7 +268,7 @@ void au_iinfo_fin(struct inode *inode)
 
 	iinfo = au_ii(inode);
 	if (iinfo->ii_vdir)
-		au_vdir_free(iinfo->ii_vdir, /*atonce*/0);
+		au_vdir_free(iinfo->ii_vdir);
 
 	bindex = iinfo->ii_btop;
 	if (bindex >= 0) {
@@ -280,6 +280,6 @@ void au_iinfo_fin(struct inode *inode)
 			hi++;
 		}
 	}
-	au_delayed_kfree(iinfo->ii_hinode);
+	kfree(iinfo->ii_hinode);
 	AuRwDestroy(&iinfo->ii_rwsem);
 }
