@@ -1,4 +1,4 @@
-aufs (4.11+20170703-1) unstable; urgency=medium
+aufs (4.12+20170703-1) unstable; urgency=medium
 
   * New upstream release. (Closes: #865614)
   * debian/control:
