@@ -1,3 +1,11 @@
+aufs (4.14+20171218-1) unstable; urgency=medium
+
+  * New upstream release. (Closes: #880387)
+  * debian/control:
+    - Update to Debian policy 4.1.2, no changes required.
+
+ -- Jan Luca Naumann <j.naumann@fu-berlin.de>  Sat, 02 Dec 2017 12:39:30 +0100
+
 aufs (4.13+20171002-1) unstable; urgency=medium
 
   * New upstream release. (Closes: #875620)
