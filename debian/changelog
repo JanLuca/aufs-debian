@@ -1,3 +1,9 @@
+aufs (4.15+20180212-1) unstable; urgency=medium
+
+  * New upstream release. (Closes: #890733)
+
+ -- Jan Luca Naumann <j.naumann@fu-berlin.de>  Sun, 18 Feb 2018 14:59:33 +0100
+
 aufs (4.14+20171218-1) unstable; urgency=medium
 
   * New upstream release. (Closes: #880387)
